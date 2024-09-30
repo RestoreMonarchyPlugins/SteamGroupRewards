@@ -10,11 +10,8 @@ using Rocket.Unturned.Chat;
 using Rocket.Unturned.Player;
 using SDG.Unturned;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using static Rocket.Unturned.Events.UnturnedEvents;
 
 namespace RestoreMonarchy.SteamGroupRewards
 {
