@@ -10,6 +10,11 @@ Reward players for joining your Steam group with a rank.
 
 I recommend adding a **/steam** command to your server that will open a link to your Steam group. You can create a **steam** permission group as well with permissions you want to give to players for joining, for example special kit or vault access.
 
+Unfortunately endpoint being used to fetch the members list is cached by Steam, so even if you set RefreshTimeSeconds to 3 minutes for example, it usually takes 10 minutes for the plugin to notice when someone joined/left the group. From what we noticed Steam caches the request per IP or client, so even though someone might appear to be on the list for you, it doesn't mean that Steam didn't return a cached list to the client.
+
+Endpoint used to fetch Steam IDs of group members in the plugin: 
+https://steamcommunity.com/groups/RestoreMonarchy/memberslistxml/?xml=1
+
 ## Credits
 **Soer** for the idea and sponsoring the plugin.
 
