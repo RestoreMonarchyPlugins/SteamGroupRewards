@@ -12,6 +12,8 @@ using SDG.Unturned;
 using System;
 using System.Linq;
 using System.Net;
+using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace RestoreMonarchy.SteamGroupRewards
 {
@@ -21,6 +23,12 @@ namespace RestoreMonarchy.SteamGroupRewards
         public UnityEngine.Color MessageColor { get; set; }
 
         public ulong[] GroupMembers { get; set; } = null;
+
+        // Track consecutive times a player was not found in the group
+        private ConcurrentDictionary<ulong, int> membershipMissingCount = new ConcurrentDictionary<ulong, int>();
+
+        // Number of consecutive checks required before removing rewards
+        private const int REQUIRED_MISSING_CHECKS = 3;
 
         protected override void Load()
         {
@@ -39,6 +47,7 @@ namespace RestoreMonarchy.SteamGroupRewards
             CancelInvoke(nameof(RefreshGroupMembers));
 
             U.Events.OnPlayerConnected -= CheckPlayer;
+            membershipMissingCount.Clear();
 
             Logger.Log($"{Name} has been unloaded!", ConsoleColor.Yellow);
         }
@@ -76,7 +85,8 @@ namespace RestoreMonarchy.SteamGroupRewards
                             CheckPlayer(unturnedPlayer);
                         }
                     });
-                } catch (WebException ex)
+                }
+                catch (WebException ex)
                 {
                     Logger.LogError($"Failed to refresh Steam group members: {ex.Message}");
                 }
@@ -100,23 +110,47 @@ namespace RestoreMonarchy.SteamGroupRewards
 
             bool isInPermissionGroup = group.Members.Contains(player.Id);
             bool isInSteamGroup = GroupMembers.Contains(player.CSteamID.m_SteamID);
+            ulong steamId = player.CSteamID.m_SteamID;
 
+            // Player is in permission group but not found in Steam group
             if (isInPermissionGroup && !isInSteamGroup)
             {
-                RocketPermissionsProviderResult result = R.Permissions.RemovePlayerFromGroup(group.Id, player);
-                if (result == RocketPermissionsProviderResult.Success)
+                // Increment missing count
+                int currentCount = membershipMissingCount.AddOrUpdate(steamId,
+                    1, // Initial value if key doesn't exist
+                    (key, oldValue) => oldValue + 1 // Increment existing value
+                );
+
+                LogDebug($"Player {player.CharacterName} not found in Steam group. Missing count: {currentCount}/{REQUIRED_MISSING_CHECKS}");
+
+                // Only remove if we've confirmed multiple times
+                if (currentCount >= REQUIRED_MISSING_CHECKS)
                 {
-                    string msg = Translate("Removed", group.DisplayName);
-                    UnturnedChat.Say(player, msg, MessageColor);
-                    LogDebug($"{player.CharacterName} has been removed from {group.Id} group!");
+                    RocketPermissionsProviderResult result = R.Permissions.RemovePlayerFromGroup(group.Id, player);
+                    if (result == RocketPermissionsProviderResult.Success)
+                    {
+                        string msg = Translate("Removed", group.DisplayName);
+                        UnturnedChat.Say(player, msg, MessageColor);
+                        LogDebug($"{player.CharacterName} has been removed from {group.Id} group after {REQUIRED_MISSING_CHECKS} confirmations!");
+
+                        // Reset the counter after successful removal
+                        membershipMissingCount.TryRemove(steamId, out _);
+                    }
+                    else
+                    {
+                        LogDebug($"Failed to remove {player.CharacterName} from {group.Id} group! Result: {result}");
+                    }
                 }
-                else
-                {
-                    LogDebug($"Failed to remove {player.CharacterName} from {group.Id} group! Result: {result}");
-                    return;
-                }
+                return;
             }
 
+            // If player is found in Steam group, reset their missing count
+            if (isInSteamGroup)
+            {
+                membershipMissingCount.TryRemove(steamId, out _);
+            }
+
+            // Add player to permission group if they're in Steam group but not permission group
             if (!isInPermissionGroup && isInSteamGroup)
             {
                 RocketPermissionsProviderResult result = R.Permissions.AddPlayerToGroup(Configuration.Instance.PermissionGroupID, player);
@@ -132,12 +166,11 @@ namespace RestoreMonarchy.SteamGroupRewards
                         string announcement = Translate("Announcement", player.CharacterName, group.DisplayName, Configuration.Instance.SteamGroupName);
                         UnturnedChat.Say(announcement, MessageColor);
                     }
-                } else
+                }
+                else
                 {
                     LogDebug($"Failed to add {player.CharacterName} to {group.Id} group! Result: {result}");
                 }
-
-                return;
             }
         }
     }
