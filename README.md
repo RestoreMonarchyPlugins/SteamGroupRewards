@@ -1,24 +1,16 @@
 # Steam Group Rewards
-Reward players for joining your Steam group with a rank.
 
-## Features
-- Plugin checks every RefreshTimeSeconds if player is in Steam group specified in configuration.
-- If player is in the group, he gets a permission group specified in configuration.
-- If player leaves the group, he loses a permission group specified in configuration.
-- Optionally, you can enable announcement when player joins the group, so everyone can see it.
-- All calls to Steam API are done in a separate thread to not block the main thread. So it won't cause any lag on your server.
+A simple Unturned plugin that gives players special ranks/permissions for joining your Steam group.
 
-I recommend adding a **/steam** command to your server that will open a link to your Steam group. You can create a **steam** permission group as well with permissions you want to give to players for joining, for example special kit or vault access.
+## How It Works
 
-Unfortunately endpoint being used to fetch the members list is cached by Steam, so even if you set RefreshTimeSeconds to 3 minutes for example, it usually takes 10 minutes for the plugin to notice when someone joined/left the group. From what we noticed Steam caches the request per IP or client, so even though someone might appear to be on the list for you, it doesn't mean that Steam didn't return a cached list to the client.
+- The plugin checks if players are members of your Steam group
+- Members get special permissions on your server
+- Players lose these permissions if they leave the group
+- All Steam API calls run in separate threads to prevent server lag
 
-Endpoint used to fetch Steam IDs of group members in the plugin: 
-https://steamcommunity.com/groups/RestoreMonarchy/memberslistxml?xml=1
+## Configuration Options
 
-## Credits
-**Soer** for the idea and sponsoring the plugin.
-
-## Configuration
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <SteamGroupRewardsConfiguration xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -30,7 +22,53 @@ https://steamcommunity.com/groups/RestoreMonarchy/memberslistxml?xml=1
 </SteamGroupRewardsConfiguration>
 ```
 
+- **MessageColor**: Color of plugin messages in chat (yellow, green, red, etc.)
+- **SteamGroupName**: Your Steam group name (from the URL)
+- **PermissionGroupID**: Permission group to give players when they join your Steam group
+- **RefreshTimeSeconds**: How often to check for group membership changes (in seconds)
+- **EnableAnnouncement**: When true, announces to all players when someone gets rewards
+
+## Important Note
+
+Due to Steam's caching system, membership changes may take about 10 minutes to be detected by the plugin, even if you set a shorter refresh time.
+
+## Tips
+
+- Create a `/steam` command on your server that opens a link to your Steam group, making it easy for players to join.  
+  You can use [RichMessageAnnouncer](https://restoremonarchy.com/servers/plugins/richmessageannouncer) plugin to create this command.
+
+### Reward Idea: Special Kit Access
+
+One popular reward idea is to give Steam group members access to an exclusive kit. To do this:
+
+1. Create a permission group called "steam" (or any name you prefer)
+2. Set up this group with the "kit.steam" permission
+3. Change the `PermissionGroupID` in the plugin configuration from "vip" to your group name
+
+Here's an example permission group configuration:
+
+```xml
+<Group>
+  <Id>steam</Id>
+  <DisplayName>Steam</DisplayName>
+  <Prefix />
+  <Suffix />
+  <Color>66c0f4</Color>
+  <Members>
+    <Member>76561198016438091</Member>
+  </Members>
+  <ParentGroup>default</ParentGroup>
+  <Priority>100</Priority>
+  <Permissions>
+    <Permission Cooldown="0">kit.steam</Permission>
+  </Permissions>
+</Group>
+```
+
+This gives your Steam group members access to a special kit while also displaying their name in Steam's blue color in chat.
+
 ## Translations
+
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Translations xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -39,3 +77,7 @@ https://steamcommunity.com/groups/RestoreMonarchy/memberslistxml?xml=1
   <Translation Id="Removed" Value="You lost {0} for leaving our Steam group." />
 </Translations>
 ```
+
+## Credits
+
+**Soer** for the idea and sponsoring the plugin.
